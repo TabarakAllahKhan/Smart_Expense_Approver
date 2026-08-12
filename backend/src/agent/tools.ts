@@ -5,6 +5,11 @@ type SpendingLimitResult={
     category:string
 };
 
+type ReceiptCheckResult={
+    receiptRequired:boolean,
+    receiptProvided:boolean,
+}
+
 const MOCK_LIMITS:Record<string,number>={
     Meals:50,
     Travel:500,
@@ -19,5 +24,13 @@ export function checkSpendingLimit(category:string,amount:number):SpendingLimitR
         withinLimit:amount<=limit,
         limit,
         category
+    }
+}
+
+export function checkReceiptRequired(amount:number,hasReceipt:boolean):ReceiptCheckResult{
+    const RECEIPT_THRESHOLD=50;
+    return{
+        receiptRequired:amount>RECEIPT_THRESHOLD,
+        receiptProvided:hasReceipt
     }
 }
