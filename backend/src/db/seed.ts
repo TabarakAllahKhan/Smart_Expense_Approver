@@ -1,8 +1,8 @@
 import {connectToDatabase} from "../db/connect";
-import {ExpenseRule} from "../models/ExpenseRules";
+import {ExpenseRule} from "../models/ExpenseRule";
 
 const defaultRules = [
-  { category: "Meals", spendingLimit: 50, receiptThreshold: 50 },
+  { category: "Meals", spendingLimit: 100, receiptThreshold: 50 },
   { category: "Travel", spendingLimit: 500, receiptThreshold: 50 },
   { category: "Equipment", spendingLimit: 1000, receiptThreshold: 50 },
   { category: "Software", spendingLimit: 200, receiptThreshold: 50 },

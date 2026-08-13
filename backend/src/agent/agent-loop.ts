@@ -1,24 +1,25 @@
 import "dotenv/config";
 import Groq from "groq-sdk";
 import { toolSchemas } from "./tool-schemas.js";
-import { checkSpendingLimit, checkReceiptRequired,checkDuplicateSubmission,viewPurchaseHistory } from "./tools.js";
+import { checkSpendingLimit,checkReceiptRequired,checkDuplicateSubmission,viewPurchaseHistory } from "./tools.js";
 import {verdictSchema} from "./verdict-schema.js";
+import {connectToDatabase} from "../db/connect.js";
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 // Maps tool name -> actual function, so we can call the right one
 // based on what Groq requested.
-const toolImplementations: Record<string, (args: any) => unknown> = {
+const toolImplementations: Record<string, (args: any) => unknown | Promise<unknown>> = {
   checkSpendingLimit: (args) =>
     checkSpendingLimit(args.category, args.amount),
   checkReceiptRequired: (args) =>
     checkReceiptRequired(args.amount, args.hasReceipt),
   checkDuplicateSubmission: (args) =>
     checkDuplicateSubmission(args.userId, args.amount, args.date),
-  viewPurchaseHistory: (args) =>
-    viewPurchaseHistory(args.userId),
+  viewPurchaseHistory: (args) => viewPurchaseHistory(args.userId),
 };
 
 async function main() {
+  await connectToDatabase();
   const expense = {
     userId:"user_123",
     amount: 75,
@@ -59,7 +60,7 @@ async function main() {
 
       console.log(`Executing tool: ${fnName}(${JSON.stringify(args)})`);
 
-      const result = toolImplementations[fnName](args);
+      const result =await toolImplementations[fnName](args);
       console.log(`Result:`, result);
 
       messages.push({
@@ -94,6 +95,8 @@ if(!verdict.success){
   return;
 }
 console.log("\nFinal verdict:", verdict.data)
+
+process.exit(0);
 }
 
 main();

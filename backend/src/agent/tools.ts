@@ -1,3 +1,49 @@
+import { ExpenseRule } from "../models/ExpenseRule";
+
+const MOCK_EXISTING_EXPENSES = [
+    {
+        id: "exp_1001",
+        userId: "user_123",
+        amount: 75,
+        category: "Meals",
+        date: "2026-08-09",
+        decision: "approved",
+    },
+    {
+        id: "exp_1002",
+        userId: "user_456",
+        amount: 120,
+        category: "Travel",
+        date: "2026-08-10",
+        decision: "flagged",
+    },
+    {
+        id: "exp_1003",
+        userId: "user_123",
+        amount: 75,
+        category: "Meals",
+        date: "2026-08-12",
+        decision: "rejected",
+    },
+];
+
+const MOCK_USER_HISTORY: Record<string, { recentExpenses: Array<{ amount: number; category: string; date: string; decision: string }>; flagRate: number }> = {
+    user_123: {
+        recentExpenses: [
+            { amount: 60, category: "Meals", date: "2026-08-01", decision: "approved" },
+            { amount: 90, category: "Meals", date: "2026-08-05", decision: "flagged" },
+            { amount: 75, category: "Meals", date: "2026-08-09", decision: "approved" },
+        ],
+        flagRate: 33.33,
+    },
+    user_456: {
+        recentExpenses: [
+            { amount: 180, category: "Travel", date: "2026-08-02", decision: "approved" },
+            { amount: 120, category: "Travel", date: "2026-08-10", decision: "flagged" },
+        ],
+        flagRate: 50,
+    },
+};
 
 type SpendingLimitResult={
     withinLimit:boolean,
@@ -25,34 +71,16 @@ type PurchaseHistoryResult={
     flagRate:number; // percentage of recent expenses that were flagged
 }
 
-const MOCK_USER_HISTORY:Record<string,PurchaseHistoryResult>={
-    user_123:{
-        recentExpenses:[
-            {amount:75,category:"Meals",date:"2026-08-10",decision:"auto-approved"},
-            {amount:200,category:"Travel",date:"2026-08-11",decision:"flagged"},
-            {amount:30,category:"Software",date:"2026-08-09",decision:"auto-approved"},
-        ],
-        flagRate:0.33
-    }
-}
-const MOCK_EXISTING_EXPENSES=[
-    {id:"exp_001",userId:"user_123",amount:75,date:"2026-08-10",category:"Meals"},
-    {id:"exp_002",userId:"user_456",amount:200,date:"2026-08-11",category:"Travel"},
-]
-const MOCK_LIMITS:Record<string,number>={
-    Meals:50,
-    Travel:500,
-    Equipment:1000,
-    Software:200,
-    Other:100
-}
 
-export function checkSpendingLimit(category:string,amount:number):SpendingLimitResult{
-    const limit=MOCK_LIMITS[category] ?? 100; 
+
+export async function checkSpendingLimit(category:string,amount:number):Promise<SpendingLimitResult>{
+    const rule=await ExpenseRule.findOne({category});
+
+    const limit=rule?.spendingLimit ?? 0;
     return{
         withinLimit:amount<=limit,
         limit,
-        category
+        category,
     }
 }
 
