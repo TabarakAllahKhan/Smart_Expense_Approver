@@ -1,8 +1,8 @@
 import "dotenv/config";
 import Groq from "groq-sdk";
 import { toolSchemas } from "./tool-schemas.js";
-import { checkSpendingLimit, checkReceiptRequired } from "./tools.js";
-
+import { checkSpendingLimit, checkReceiptRequired,checkDuplicateSubmission,viewPurchaseHistory } from "./tools.js";
+import {verdictSchema} from "./verdict-schema.js";
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 // Maps tool name -> actual function, so we can call the right one
@@ -12,14 +12,20 @@ const toolImplementations: Record<string, (args: any) => unknown> = {
     checkSpendingLimit(args.category, args.amount),
   checkReceiptRequired: (args) =>
     checkReceiptRequired(args.amount, args.hasReceipt),
+  checkDuplicateSubmission: (args) =>
+    checkDuplicateSubmission(args.userId, args.amount, args.date),
+  viewPurchaseHistory: (args) =>
+    viewPurchaseHistory(args.userId),
 };
 
 async function main() {
   const expense = {
+    userId:"user_123",
     amount: 75,
     category: "Meals",
     description: "Team lunch with client",
     hasReceipt: false,
+    date: "2026-08-11",
   };
 
   const messages: any[] = [
@@ -65,15 +71,29 @@ async function main() {
   }
 
   // Second call — Groq now has real tool results, asked for a final answer
+  messages.push({
+    role: "user",
+    content:
+      "Based on the tool results, respond with ONLY a JSON object (no other text) in this exact shape: " +
+      `{ "decision": "auto-approved" | "flagged" | "rejected", "confidence": number between 0 and 1, "reasoning": string, "flaggedRules": string[] optional }`,
+  });
   const secondResponse = await groq.chat.completions.create({
     model: "llama-3.3-70b-versatile",
     messages,
-    tools: toolSchemas,
+    //tools: toolSchemas,
+    response_format:{type:"json_object"}
   });
+const rawContent=secondResponse.choices[0].message.content ?? "";
+console.log("\nRaw content from Groq:", rawContent);
 
-  const finalMessage = secondResponse.choices[0].message;
-  console.log("\nFinal Groq response:");
-  console.log(finalMessage.content);
+const parsedJson=JSON.parse(rawContent);
+const verdict=verdictSchema.safeParse(parsedJson);
+
+if(!verdict.success){
+  console.error("Verdict validation failed:", verdict.error.format());
+  return;
+}
+console.log("\nFinal verdict:", verdict.data)
 }
 
 main();
