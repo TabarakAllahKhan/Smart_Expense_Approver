@@ -38,4 +38,4 @@ const expenseSchema=new Schema<ExpenseDoc>({
     createdAt:{type:Date,default:Date.now}
 })
 
-export const ExpenseModel=mongoose.model<ExpenseDoc>("Expense",expenseSchema);
+export const Expense=mongoose.model<ExpenseDoc>("Expense",expenseSchema);
