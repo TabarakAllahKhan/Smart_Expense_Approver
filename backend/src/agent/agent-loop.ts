@@ -3,12 +3,9 @@ import Groq from "groq-sdk";
 import { toolSchemas } from "./tool-schemas.js";
 import { checkSpendingLimit, checkReceiptRequired, checkDuplicateSubmission, viewPurchaseHistory } from "./tools.js";
 import { Verdict, verdictSchema } from "./verdict-schema.js";
-import { connectToDatabase } from "../db/connect.js";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-// Maps tool name -> actual function, so we can call the right one
-// based on what Groq requested.
 const toolImplementations: Record<string, (args: any) => unknown | Promise<unknown>> = {
   checkSpendingLimit: (args) =>
     checkSpendingLimit(args.category, args.amount),
@@ -19,18 +16,16 @@ const toolImplementations: Record<string, (args: any) => unknown | Promise<unkno
   viewPurchaseHistory: (args) => viewPurchaseHistory(args.userId),
 };
 
-async function main() {
-  await connectToDatabase();
+export type ExpenseInput = {
+  userId: string;
+  amount: number;
+  category: string;
+  description: string;
+  hasReceipt: boolean;
+  date: string;
+};
 
-  const expense = {
-    userId: "user_123",
-    amount: 75,
-    category: "Meals",
-    description: "Team lunch with client",
-    hasReceipt: false,
-    date: "2026-08-11",
-  };
-
+export async function runAgentLoop(expense: ExpenseInput): Promise<Verdict> {
   const messages: any[] = [
     {
       role: "system",
@@ -43,7 +38,6 @@ async function main() {
     },
   ];
 
-  // First call — Groq decides which tools to use
   const firstResponse = await groq.chat.completions.create({
     model: "llama-3.3-70b-versatile",
     messages,
@@ -53,16 +47,14 @@ async function main() {
   });
 
   const firstMessage = firstResponse.choices[0].message;
-  messages.push(firstMessage); // add Groq's tool-call request to the conversation
+  messages.push(firstMessage);
 
-  // Execute each requested tool for real, and add the result to the conversation
   if (firstMessage.tool_calls) {
     for (const toolCall of firstMessage.tool_calls) {
       const fnName = toolCall.function.name;
       const args = JSON.parse(toolCall.function.arguments);
 
       console.log(`Executing tool: ${fnName}(${JSON.stringify(args)})`);
-
       const result = await toolImplementations[fnName](args);
       console.log(`Result:`, result);
 
@@ -74,8 +66,6 @@ async function main() {
     }
   }
 
-  // Ask for a structured verdict, with retries if Groq's output doesn't
-  // match our Zod schema.
   messages.push({
     role: "user",
     content:
@@ -101,12 +91,11 @@ async function main() {
     try {
       parsedJson = JSON.parse(rawContent);
     } catch {
-      console.error(`Attempt ${attempt}: Groq did not return valid JSON at all.`);
+      console.error(`Attempt ${attempt}: Groq did not return valid JSON.`);
       messages.push({ role: "assistant", content: rawContent });
       messages.push({
         role: "user",
-        content:
-          "That was not valid JSON. Respond again with ONLY a valid JSON object, nothing else.",
+        content: "That was not valid JSON. Respond again with ONLY a valid JSON object, nothing else.",
       });
       continue;
     }
@@ -115,20 +104,14 @@ async function main() {
 
     if (result.success) {
       verdict = result.data;
-      break; // success, stop retrying
+      break;
     }
 
-    console.error(
-      `Attempt ${attempt}: verdict failed Zod validation:`,
-      result.error.issues
-    );
-
+    console.error(`Attempt ${attempt}: verdict failed Zod validation:`, result.error.issues);
     messages.push({ role: "assistant", content: rawContent });
     messages.push({
       role: "user",
-      content: `That JSON was invalid: ${JSON.stringify(
-        result.error.issues
-      )}. Please correct it and respond with ONLY the fixed JSON object.`,
+      content: `That JSON was invalid: ${JSON.stringify(result.error.issues)}. Please correct it and respond with ONLY the fixed JSON object.`,
     });
   }
 
@@ -137,14 +120,9 @@ async function main() {
     verdict = {
       decision: "flagged",
       confidence: 0,
-      reasoning:
-        "Agent failed to produce a valid verdict after retries. Flagged for manual review.",
+      reasoning: "Agent failed to produce a valid verdict after retries. Flagged for manual review.",
     };
   }
 
-  console.log("\nFinal verdict:", verdict);
-
-  process.exit(0);
+  return verdict;
 }
-
-main();
