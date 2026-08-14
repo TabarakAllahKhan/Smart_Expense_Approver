@@ -1,9 +1,10 @@
 import "dotenv/config";
 import Groq from "groq-sdk";
 import { toolSchemas } from "./tool-schemas.js";
-import { checkSpendingLimit,checkReceiptRequired,checkDuplicateSubmission,viewPurchaseHistory } from "./tools.js";
-import {verdictSchema} from "./verdict-schema.js";
-import {connectToDatabase} from "../db/connect.js";
+import { checkSpendingLimit, checkReceiptRequired, checkDuplicateSubmission, viewPurchaseHistory } from "./tools.js";
+import { Verdict, verdictSchema } from "./verdict-schema.js";
+import { connectToDatabase } from "../db/connect.js";
+
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 // Maps tool name -> actual function, so we can call the right one
@@ -20,8 +21,9 @@ const toolImplementations: Record<string, (args: any) => unknown | Promise<unkno
 
 async function main() {
   await connectToDatabase();
+
   const expense = {
-    userId:"user_123",
+    userId: "user_123",
     amount: 75,
     category: "Meals",
     description: "Team lunch with client",
@@ -47,6 +49,7 @@ async function main() {
     messages,
     tools: toolSchemas,
     tool_choice: "auto",
+    temperature: 0.1,
   });
 
   const firstMessage = firstResponse.choices[0].message;
@@ -60,7 +63,7 @@ async function main() {
 
       console.log(`Executing tool: ${fnName}(${JSON.stringify(args)})`);
 
-      const result =await toolImplementations[fnName](args);
+      const result = await toolImplementations[fnName](args);
       console.log(`Result:`, result);
 
       messages.push({
@@ -71,32 +74,77 @@ async function main() {
     }
   }
 
-  // Second call — Groq now has real tool results, asked for a final answer
+  // Ask for a structured verdict, with retries if Groq's output doesn't
+  // match our Zod schema.
   messages.push({
     role: "user",
     content:
       "Based on the tool results, respond with ONLY a JSON object (no other text) in this exact shape: " +
       `{ "decision": "auto-approved" | "flagged" | "rejected", "confidence": number between 0 and 1, "reasoning": string, "flaggedRules": string[] optional }`,
   });
-  const secondResponse = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
-    messages,
-    //tools: toolSchemas,
-    response_format:{type:"json_object"}
-  });
-const rawContent=secondResponse.choices[0].message.content ?? "";
-console.log("\nRaw content from Groq:", rawContent);
 
-const parsedJson=JSON.parse(rawContent);
-const verdict=verdictSchema.safeParse(parsedJson);
+  const MAX_RETRIES = 2;
+  let verdict: Verdict | null = null;
 
-if(!verdict.success){
-  console.error("Verdict validation failed:", verdict.error.format());
-  return;
-}
-console.log("\nFinal verdict:", verdict.data)
+  for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+    const response = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages,
+      response_format: { type: "json_object" },
+      temperature: 0.1,
+    });
 
-process.exit(0);
+    const rawContent = response.choices[0].message.content ?? "";
+    console.log(`\nAttempt ${attempt} — raw JSON from Groq:`, rawContent);
+
+    let parsedJson: unknown;
+    try {
+      parsedJson = JSON.parse(rawContent);
+    } catch {
+      console.error(`Attempt ${attempt}: Groq did not return valid JSON at all.`);
+      messages.push({ role: "assistant", content: rawContent });
+      messages.push({
+        role: "user",
+        content:
+          "That was not valid JSON. Respond again with ONLY a valid JSON object, nothing else.",
+      });
+      continue;
+    }
+
+    const result = verdictSchema.safeParse(parsedJson);
+
+    if (result.success) {
+      verdict = result.data;
+      break; // success, stop retrying
+    }
+
+    console.error(
+      `Attempt ${attempt}: verdict failed Zod validation:`,
+      result.error.issues
+    );
+
+    messages.push({ role: "assistant", content: rawContent });
+    messages.push({
+      role: "user",
+      content: `That JSON was invalid: ${JSON.stringify(
+        result.error.issues
+      )}. Please correct it and respond with ONLY the fixed JSON object.`,
+    });
+  }
+
+  if (!verdict) {
+    console.error("Failed to get a valid verdict after retries. Flagging for manual review.");
+    verdict = {
+      decision: "flagged",
+      confidence: 0,
+      reasoning:
+        "Agent failed to produce a valid verdict after retries. Flagged for manual review.",
+    };
+  }
+
+  console.log("\nFinal verdict:", verdict);
+
+  process.exit(0);
 }
 
 main();
