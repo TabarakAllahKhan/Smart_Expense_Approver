@@ -12,23 +12,30 @@ const defaultRules = [
 
 const testExpenses=[
     {
-        userId:"user_123",
-        amount:75,
-        category:"Meals",
-        description:"Team lunch",
-        hasReceipt:true,
-        date:new Date("2026-08-10"),
-        decision:"flagged" as const
-    },
-    {
-        userId:"user_123",
-        amount:40,
-        category:"Software",
-        description:"Figma subscription",
-        hasReceipt:true,
-        date:new Date('2026-08-5'),
-        decision:"auto-approved" as const
-    },
+    userId: "user_3Hwjh2ih9UpbHHTcdzH2b6u0aDv",
+    amount: 75,
+    category: "Meals",
+    description: "Team lunch",
+    hasReceipt: true,
+    date: new Date("2026-08-10"),
+    decision: "flagged" as const,
+    reasoning: "Expense exceeds the standard Meals limit but includes a valid receipt, so flagged for manager review rather than rejected outright.",
+    confidence: 0.72,
+    flaggedRules: ["spending_limit_exceeded"],
+  },
+   
+   {
+    userId: "user_3Hwjh2ih9UpbHHTcdzH2b6u0aDv",
+    amount: 190,
+    category: "Software",
+    description: "Claude Subscription",
+    hasReceipt: false,
+    date: new Date("2026-08-10"),
+    decision: "flagged" as const,
+    reasoning: "The expense is with in the company limit but receipt not provided so flagged it for review.",
+    confidence: 0.80,
+    flaggedRules: ["Receipt Not provided"],
+  },
     {
         userId:"user_123",
         amount:200,

@@ -121,3 +121,69 @@ export async function overrideExpense(req:Request,res:Response) {
     }
     
 }
+
+export async function updateExpense(req:Request,res:Response) {
+   try {
+      const {isAuthenticated,userId}=getAuth(req);
+      if(!isAuthenticated){
+        return res.status(401).json({error:"User is not Authenticated"});
+      }
+      const {id} = req.params;
+      const expense=await Expense.findById(id);
+
+      if(!expense){
+        return res.status(404).json({error:"Expense Not found"});
+
+      }
+
+      // Only the orignal submitter can edit their expense
+      if(expense.userId!==userId){
+        return res.status(403).json({error:"You can only edit your own expense"});
+      }
+
+      // Only editable when decision is flagged
+
+      const editableStates=["pending","flagged"];
+
+      if (!editableStates.includes(expense.decision) || expense.managerOverride?.decision) {
+             return res.status(400).json({
+             error: "This expense cannot be edited as it has already been finalized",
+            });
+      }
+
+      const {amount,category,description,hasReceipt,date}=req.body;
+
+      //Applying edits
+
+      if(amount!==undefined) expense.amount=amount;
+      if(category!==undefined) expense.category=category;
+      if(description!==undefined) expense.description=description;
+      if(hasReceipt!==undefined) expense.hasReceipt=hasReceipt;
+      if(date!==undefined) expense.date=new Date(date);
+
+      // call the agent again
+
+      const verdict=await runAgentLoop({
+        userId:expense.userId,
+        amount:expense.amount,
+        category:expense.category,
+        description:expense.description,
+        hasReceipt:expense.hasReceipt,
+        date:expense.date.toISOString().split("T")[0]
+      })
+
+      expense.decision=verdict.decision;
+      expense.resoning=verdict.reasoning;
+      expense.confidence=verdict.confidence;
+      expense.flaggedRules=verdict.flaggedRules;
+
+      await expense.save();
+
+      res.status(200).json(expense);
+
+   } catch (error) {
+       console.error("Error updating expense:",error);
+       res.status(500).json({error:"Failed to update expense"})
+   }
+    
+}
