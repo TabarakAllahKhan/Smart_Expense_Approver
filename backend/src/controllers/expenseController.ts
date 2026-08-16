@@ -187,3 +187,50 @@ export async function updateExpense(req:Request,res:Response) {
    }
     
 }
+
+
+export async function deleteExpense(req:Request,res:Response){
+     try {
+         const {isAuthenticated,userId}=getAuth(req);
+
+     if(!isAuthenticated){
+          return res.status(401).json({error:"The user is not authenticated"});
+     }
+     const {id}=req.params;
+
+     const expense=await Expense.findById(id);
+
+     if(!expense){
+        return res.status(404).json({
+           error:"Expense not found"
+        })
+     }
+
+     if(expense?.userId!==userId){
+       return res.status(403).json({error:"Only you can delete your own expense"});
+
+     }
+
+     const editableStates=["pending","flagged"];
+
+    if (!editableStates.includes(expense.decision) || expense.managerOverride?.decision) {
+             return res.status(400).json({
+             error: "This expense cannot be deleted as it has already been finalized",
+            });
+      }
+
+      await expense.deleteOne()
+
+      res.status(200).json({msg:"Expense deleted successfully",id});
+
+      
+     } catch (error) {
+       console.error("Error deleting the Expense",error);
+       return res.status(500).json({error:"Action cant be completed"});
+     }
+     
+
+
+
+
+}
