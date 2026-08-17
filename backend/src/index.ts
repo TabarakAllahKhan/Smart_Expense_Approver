@@ -3,10 +3,18 @@ import express from "express"
 import { connectToDatabase } from "./db/connect.js"
 import expenseRoutes from "./routes/expenseRoutes.js";
 import { clerkMiddleware } from "@clerk/express";
+import cors from "cors" 
 
 
 
 const app=express();
+
+app.use(
+    cors({
+        origin:"http://localhost:5173",
+        credentials:true,
+    })
+)
 
 app.use(express.json())
 

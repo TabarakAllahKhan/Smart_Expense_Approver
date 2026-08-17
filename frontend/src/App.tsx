@@ -1,9 +1,25 @@
+import { Header } from "./components/layout/Header"
+import { useEffect } from "react"
+import { useAuth } from "@clerk/clerk-react"
+import { apiClient } from "./lib/apiClient"
 function App() {
+  const {getToken,isSignedIn}=useAuth()
+  
+  useEffect(()=>{
+    async function testFetch(){
+      if(!isSignedIn) return
+      const token=await getToken()
+      const expenses=await apiClient('/expenses',{token})
+      console.log("fetched expenses",expenses)
+    }
+    testFetch()
+  },[isSignedIn])
   return (
-    <div className="min-h-screen bg-white">
-      <h1 className="text-2xl font-bold p-8">Smart Expense Approver</h1>
+   
+     <div className="min-h-screen bg-gray-50">
+      <Header />
     </div>
-  );
+  )
 }
 
-export default App;
+export default App
