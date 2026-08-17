@@ -2,6 +2,8 @@ import { Request,Response } from "express";
 import { runAgentLoop,ExpenseInput } from "../agent/agent-loop";
 import { Expense } from "../models/Expense";
 import { getAuth } from "@clerk/express";
+import { sendEmployeeDecisionEmail,sendManagerFlagEmail,sendOverrideNotificationEmail } from "../services/emailService";
+import { getUserEmail,getManagerEmails } from "../services/clerkService";
 
 export async function submitExpense(req:Request,res:Response) {
     try {
@@ -23,6 +25,28 @@ export async function submitExpense(req:Request,res:Response) {
       confidence: verdict.confidence,
       flaggedRules: verdict.flaggedRules,
     });
+
+    if(verdict.decision==="flagged"){
+      const managerEmails=await getManagerEmails();
+
+      for(const email of managerEmails){
+         sendManagerFlagEmail(email,{
+           amount:savedExpense.amount,
+           category:savedExpense.category,
+           reasoning:savedExpense.resoning ?? ""
+         });
+      }
+    }else{
+      const employeeEmail=await getUserEmail(userId!);
+      if(employeeEmail){
+         sendEmployeeDecisionEmail(employeeEmail,{
+           amount:savedExpense.amount,
+           category:savedExpense.category,
+           decision:savedExpense.decision,
+           reasoning:savedExpense.resoning ?? "",
+         })
+      }
+    }
     
     if(savedExpense){
         res.status(201).json(savedExpense);
@@ -111,6 +135,15 @@ export async function overrideExpense(req:Request,res:Response) {
             overridenAt:new Date()
         }
         await expense.save();
+
+        const employeeEmail=await getUserEmail(expense.userId);
+        if(employeeEmail){
+          sendOverrideNotificationEmail(employeeEmail,{
+            amount:expense.amount,
+            category:expense.category,
+            overrideDecision:decision
+          })
+        }
 
         res.status(200).json(expense);
 
