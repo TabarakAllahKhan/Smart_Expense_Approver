@@ -6,6 +6,8 @@ export interface ExpenseDoc extends mongoose.Document{
     category:string;
     description:string;
     hasReceipt:boolean;
+    receiptUrl?:string;
+    receiptText?:string;
     date:Date;
     decision:"auto-approved"|"flagged"|"rejected" | "pending";
     resoning?:string;
@@ -25,6 +27,8 @@ const expenseSchema=new Schema<ExpenseDoc>({
     category:{type:String,required:true},
     description:{type:String,required:true},
     hasReceipt:{type:Boolean,required:true},
+    receiptUrl:{type:String},
+    receiptText:{type:String},
     date:{type:Date,required:true},
     decision:{type:String,enum:["auto-approved","flagged","rejected","pending"],default:"pending"},
     resoning:{type:String},

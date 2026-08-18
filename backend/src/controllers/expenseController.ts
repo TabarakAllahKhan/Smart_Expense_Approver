@@ -14,8 +14,14 @@ export async function submitExpense(req:Request,res:Response) {
             
         }
 
-        const expenseInput:ExpenseInput={...req.body,userId}
+        const {hasReceipt:_ignoredHasReceipt,...clientBody}=req.body;
+        const expenseInput:ExpenseInput={
+          ...clientBody,
+          userId,
+          hasReceipt:!!clientBody.receiptUrl,
+        }
         const verdict=await runAgentLoop(expenseInput);
+
 
         const savedExpense = await Expense.create({
       ...expenseInput,
@@ -184,15 +190,16 @@ export async function updateExpense(req:Request,res:Response) {
             });
       }
 
-      const {amount,category,description,hasReceipt,date}=req.body;
+      const {amount,category,description,date}=req.body;
 
       //Applying edits
 
       if(amount!==undefined) expense.amount=amount;
       if(category!==undefined) expense.category=category;
       if(description!==undefined) expense.description=description;
-      if(hasReceipt!==undefined) expense.hasReceipt=hasReceipt;
       if(date!==undefined) expense.date=new Date(date);
+      
+
 
       // call the agent again
 
