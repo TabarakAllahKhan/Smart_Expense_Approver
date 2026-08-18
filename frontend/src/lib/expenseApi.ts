@@ -1,5 +1,5 @@
 import { apiClient } from "./apiClient";
-import type { Expense,ExpenseFormData } from "./types";
+import type { Expense,ExpenseFormData,UploadReceiptResponse } from "./types";
 
 
 export function submitExpense(data:ExpenseFormData,token:string|null):Promise<Expense>{
@@ -21,4 +21,10 @@ export function updateExpense(
 export function deleteExpense(id:string,token:string|null) {
     return apiClient(`expenses/${id}`,{method:"DELETE",token})
     
+}
+
+export function uploadReceipt(file:File,token:string|null):Promise<UploadReceiptResponse>{
+    const formData=new FormData();
+    formData.append("receipt",file);
+    return apiClient("/upload",{method:"POST",body:formData,token})
 }

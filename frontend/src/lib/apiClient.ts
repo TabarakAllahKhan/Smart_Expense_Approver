@@ -9,17 +9,21 @@ type ApiClientOptions={
 export async function apiClient(path:string,options:ApiClientOptions){
     const {method="GET",body,token}=options;
 
-    const headers:Record<string,string>={
-        "Content-Type":"application/json",
-    }
+    const headers:Record<string,string>={}
     if(token){
         headers['Authorization']=`Bearer ${token}`;
+    }
+
+    const isFormData=body instanceof FormData;
+
+    if(body && !isFormData){
+        headers["Content-Type"]="application/json"
     }
 
     const response=await fetch(`${BASE_API_URL}${path}`,{
         method,
         headers,
-        body:body ? JSON.stringify(body):undefined
+        body:isFormData ? body : body ? JSON.stringify(body):undefined
     });
 
     if(!response.ok){

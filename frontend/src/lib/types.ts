@@ -1,5 +1,4 @@
 export type ExpenseCategory = "Meals" | "Travel" | "Equipment" | "Software" | "Other";
-
 export type ExpenseDecision = "pending" | "auto-approved" | "flagged" | "rejected";
 
 export type Expense = {
@@ -9,6 +8,8 @@ export type Expense = {
   category: ExpenseCategory;
   description: string;
   hasReceipt: boolean;
+  receiptUrl?: string;
+  receiptText?: string;
   date: string;
   decision: ExpenseDecision;
   reasoning?: string;
@@ -26,6 +27,12 @@ export type ExpenseFormData = {
   amount: number;
   category: ExpenseCategory;
   description: string;
-  hasReceipt: boolean;
   date: string;
+  receiptUrl?: string;
+  receiptText?: string;
+};
+
+export type UploadReceiptResponse = {
+  receiptUrl: string;
+  receiptText?: string;
 };
