@@ -4,22 +4,45 @@ An agentic AI expense-approval system. Employees submit expenses with an optiona
 
 This is deliberately **not** a RAG/vector-search project (that's a separate piece of work). The goal here is to demonstrate a different skill: an agent that reasons over tools and structured data to make a real decision, rather than retrieving and summarizing documents.
 
+**Live demo:** [add deployed URL here]
+**Loom walkthrough:** [add Loom link here]
+
 ---
 
 ## Table of Contents
 
-- [The Core Idea](#the-core-idea)
-- [Tech Stack](#tech-stack)
-- [Architecture Overview](#architecture-overview)
-- [Database Design](#database-design)
-- [The Agent Loop, In Detail](#the-agent-loop-in-detail)
-- [Receipt Upload & OCR Pipeline](#receipt-upload--ocr-pipeline)
-- [Human-in-the-Loop: Manager Override](#human-in-the-loop-manager-override)
-- [Security Model](#security-model)
-- [API Reference](#api-reference)
-- [Architecture Decisions — Q&A](#architecture-decisions--qa)
-- [Known Limitations](#known-limitations)
-- [Local Setup](#local-setup)
+- [Smart Expense Approver](#smart-expense-approver)
+  - [Table of Contents](#table-of-contents)
+  - [The Core Idea](#the-core-idea)
+  - [Live Demo Link](#live-demo-link)
+  - [Check Out the Video Go Through](#check-out-the-video-go-through)
+  - [Tech Stack](#tech-stack)
+  - [Folder Structure](#folder-structure)
+  - [Architecture Overview](#architecture-overview)
+  - [Database Design](#database-design)
+    - [`Expense` collection](#expense-collection)
+    - [`ExpenseRule` collection](#expenserule-collection)
+  - [The Agent Loop, In Detail](#the-agent-loop-in-detail)
+    - [Tools (all read-only)](#tools-all-read-only)
+    - [Multi-round tool-calling](#multi-round-tool-calling)
+    - [Verdict extraction](#verdict-extraction)
+    - [Prompt structure: claim vs. evidence](#prompt-structure-claim-vs-evidence)
+  - [Receipt Upload \& OCR Pipeline](#receipt-upload--ocr-pipeline)
+  - [Human-in-the-Loop: Manager Override](#human-in-the-loop-manager-override)
+  - [Security Model](#security-model)
+  - [API Reference](#api-reference)
+    - [`POST /api/upload`](#post-apiupload)
+    - [`POST /api/expenses`](#post-apiexpenses)
+    - [`GET /api/expenses`](#get-apiexpenses)
+    - [`GET /api/expenses/flagged`](#get-apiexpensesflagged)
+    - [`PATCH /api/expenses/:id/override`](#patch-apiexpensesidoverride)
+    - [`PATCH /api/expenses/:id`](#patch-apiexpensesid)
+    - [`DELETE /api/expenses/:id`](#delete-apiexpensesid)
+  - [Architecture Decisions — Q\&A](#architecture-decisions--qa)
+  - [Known Limitations](#known-limitations)
+  - [Local Setup](#local-setup)
+    - [Backend](#backend)
+    - [Frontend](#frontend)
 
 ---
 
@@ -30,6 +53,10 @@ This is deliberately **not** a RAG/vector-search project (that's a separate piec
 The system prompt tells the agent **what each decision bucket is for** (what "flagged" means, what "rejected" means), never **when** to use it for a specific case. All spending limits, receipt thresholds, and history are looked up live via tool calls against MongoDB — nothing is hardcoded into the prompt as a fact, only as a framework for judgment.
 
 ---
+
+## Live Demo Link
+
+## Check Out the Video Go Through
 
 ## Tech Stack
 
@@ -45,6 +72,65 @@ The system prompt tells the agent **what each decision bucket is for** (what "fl
 | File upload | multer (memory storage) |
 | Email | Nodemailer (Gmail SMTP) |
 | Frontend | React + Vite + TypeScript + Tailwind CSS |
+
+---
+
+## Folder Structure
+
+```
+smart_expense_approver/
+  backend/
+    src/
+      agent/
+        agent-loop.ts        # Multi-round tool-calling loop, verdict extraction/retry
+        tools.ts              # Read-only tool implementations (query MongoDB)
+        tool-schemas.ts       # Tool definitions passed to Groq
+        verdict-schema.ts     # Zod schema for the agent's final decision
+      controllers/
+        expenseController.ts  # submit, list, flagged, override, update, delete
+        uploadController.ts   # receipt upload orchestration
+      db/
+        connect.ts
+        seed.ts                # Default ExpenseRule values, test data
+        models/
+          Expense.ts
+          ExpenseRules.ts
+      routes/
+        expenseRoutes.ts
+        uploadRoutes.ts
+      services/
+        emailService.ts        # Nodemailer/Gmail notifications
+        clerkService.ts        # Resolve emails/roles from Clerk
+        uploadService.ts       # Cloudinary upload + Tesseract OCR + usability gate
+      index.ts                 # Express app, middleware, route mounting
+    .env.example
+    package.json
+    tsconfig.json
+
+  frontend/
+    src/
+      components/
+        layout/
+          Header.tsx
+        expenses/
+          ExpenseForm.tsx       # Create + edit mode (existingExpense prop)
+          ReceiptUpload.tsx     # Upload UI, calls /api/upload independently of submit
+      pages/
+        EmployeeDashboard.tsx   # Submit form + own expense list, edit/delete
+        ManagerDashboard.tsx    # Flagged queue + approve/reject
+        LandingPage.tsx         # Signed-out marketing view
+      lib/
+        apiClient.ts            # Shared fetch wrapper (JSON + FormData)
+        expenseApi.ts           # Typed API functions per endpoint
+        types.ts                # Expense, ExpenseFormData, etc.
+        useRole.ts               # Reads manager/employee role from Clerk session
+      App.tsx                   # Signed-in/out + role-based routing (no router lib)
+      main.tsx
+    .env.example
+    package.json
+
+  README.md
+```
 
 ---
 
