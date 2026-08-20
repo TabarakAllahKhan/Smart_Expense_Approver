@@ -14,8 +14,6 @@ This is deliberately **not** a RAG/vector-search project (that's a separate piec
 - [Smart Expense Approver](#smart-expense-approver)
   - [Table of Contents](#table-of-contents)
   - [The Core Idea](#the-core-idea)
-  - [Live Demo Link](#live-demo-link)
-  - [Check Out the Video Go Through](#check-out-the-video-go-through)
   - [Tech Stack](#tech-stack)
   - [Folder Structure](#folder-structure)
   - [Architecture Overview](#architecture-overview)
@@ -54,9 +52,7 @@ The system prompt tells the agent **what each decision bucket is for** (what "fl
 
 ---
 
-## Live Demo Link
 
-## Check Out the Video Go Through
 
 ## Tech Stack
 
