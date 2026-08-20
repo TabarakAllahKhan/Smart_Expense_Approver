@@ -2,7 +2,7 @@ const BASE_API_URL="http://localhost:3001/api";
 
 type ApiClientOptions={
     method?:"GET" |  "POST" | "PATCH" | "DELETE";
-    body?:unknown;
+    body?:unknown; 
     token:string | null;
 }
 

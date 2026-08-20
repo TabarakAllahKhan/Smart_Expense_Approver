@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { ReceiptUpload } from "./receiptUpload";
+import { ReceiptUpload } from "./ReceiptUpload";
 import { submitExpense } from "../../lib/expenseApi";
 import type { ExpenseCategory, ExpenseFormData } from "../../lib/types";
 
