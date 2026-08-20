@@ -90,7 +90,7 @@ export async function getFlaggedExpenses(req: Request, res: Response) {
       return res.status(401).json({ error: "User not authenticated" });
     }
 
-    const role = (sessionClaims as { role?: string } | undefined)?.role;
+    const role = (sessionClaims as { publicMetadata?: { role?: string } } | undefined)?.publicMetadata?.role;
 
     if (role !== "manager") {
       return res.status(403).json({ error: "Manager access required" });
@@ -114,7 +114,7 @@ export async function overrideExpense(req:Request,res:Response) {
 
         if(!isAuthenticated) return res.status(401).json({error:"user not authenticated"});
 
-        const role=(sessionClaims as {role?:string} | undefined)?.role;
+        const role = (sessionClaims as { publicMetadata?: { role?: string } } | undefined)?.publicMetadata?.role;
 
         if(role!=="manager"){ 
             return res.status(403).json({error:"Manager access required"})

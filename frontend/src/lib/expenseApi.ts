@@ -15,11 +15,11 @@ export function updateExpense(
     data:Partial<ExpenseFormData>,
     token:string|null
 ):Promise<Expense>{
-    return apiClient(`expenses/${id}`,{method:"PATCH",body:data,token})
+    return apiClient(`/expenses/${id}`,{method:"PATCH",body:data,token})
 }
 
 export function deleteExpense(id:string,token:string|null) {
-    return apiClient(`expenses/${id}`,{method:"DELETE",token})
+    return apiClient(`/expenses/${id}`,{method:"DELETE",token})
     
 }
 
@@ -27,4 +27,14 @@ export function uploadReceipt(file:File,token:string|null):Promise<UploadReceipt
     const formData=new FormData();
     formData.append("receipt",file);
     return apiClient("/upload",{method:"POST",body:formData,token})
+}
+
+export function getFlaggedExpenses(token:string|null):Promise<Expense[]> {
+    return apiClient("/expenses/flagged",{method:"GET",token})
+    
+}
+
+export function overrideExpense(id:string,decision:"approved" | "rejected",token:string):Promise<Expense>{
+    return apiClient(`/expenses/${id}/override`,{method:"PATCH",body:{decision},token})
+
 }
