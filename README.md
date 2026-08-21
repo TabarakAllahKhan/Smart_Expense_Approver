@@ -52,8 +52,6 @@ The system prompt tells the agent **what each decision bucket is for** (what "fl
 
 ---
 
-
-
 ## Tech Stack
 
 | Layer | Technology |
@@ -405,6 +403,9 @@ Two roles, two views, no need for deep-linkable URLs at this scope. Role is read
 **Why reuse `ExpenseForm` for editing instead of a separate edit component or a modal?**
 A dedicated edit-only form would be near-duplicate code with a different submit handler. `ExpenseForm` takes an optional `existingExpense` prop — its presence switches the component between create mode (calls `submitExpense`, shows the receipt uploader) and edit mode (calls `updateExpense`, shows the existing receipt as a read-only link, no re-upload). Rendered inline in the expense list rather than a modal, to avoid overlay/portal complexity for a UI this simple.
 
+**Why does email work locally but not on the deployed backend?**
+Render's free tier blocks outbound SMTP ports to prevent spam abuse — a platform-level network restriction that has nothing to do with the Gmail app password or Nodemailer configuration (both are identical between environments; the connection times out before authentication is ever attempted, confirmed via the `ETIMEDOUT`/`CONN` error in production logs). The real production fix is to replace raw SMTP with a transactional email API (e.g. Resend, Brevo, SendGrid) that sends over HTTPS instead of a dedicated SMTP port — HTTPS is never blocked on any hosting platform. Left as SMTP for this deployment since the failure is fully isolated (fire-and-forget, never blocks the actual expense flow) and fixing it would mean re-evaluating the earlier Resend trade-off (see above) rather than a quick patch.
+
 ---
 
 ## Known Limitations
@@ -413,6 +414,7 @@ A dedicated edit-only form would be near-duplicate code with a different submit 
 - Manager queue shows the raw Clerk `userId` rather than a resolved name/email; would need a backend lookup endpoint to display something human-readable.
 - Receipt OCR is a legibility gate, not a receipt-authenticity check — a clear, readable image of *anything* (not necessarily a real receipt) will pass the usability filter and be handed to the agent, which is relied upon to notice content that doesn't look like a genuine receipt.
 - No automated test suite — verification so far has been manual, scenario-based testing against the live agent (documented via the reasoning traces this README's Q&A section draws from).
+- **Email notifications work locally but fail in production on Render's free tier.** Outbound SMTP (ports 465/587) is blocked on Render's free plan to prevent spam abuse — a platform-level restriction, not a credential or code issue (confirmed via `ETIMEDOUT` on the SMTP connection itself, before any authentication is attempted). Since email is fire-and-forget and never blocks the actual expense response, the core flow is unaffected; only the notification step silently fails in this environment. Documented here rather than worked around, given project scope — see the Q&A entry below for the real fix.
 
 ---
 
