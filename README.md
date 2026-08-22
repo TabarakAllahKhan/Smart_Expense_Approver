@@ -4,7 +4,8 @@ An agentic AI expense-approval system. Employees submit expenses with an optiona
 
 This is deliberately **not** a RAG/vector-search project (that's a separate piece of work). The goal here is to demonstrate a different skill: an agent that reasons over tools and structured data to make a real decision, rather than retrieving and summarizing documents.
 
-**Live demo:** [add deployed URL here]
+[**Live Demo Url**](https://smart-expense-approver.vercel.app/)
+
 **Loom walkthrough:** [add Loom link here]
 
 ---
